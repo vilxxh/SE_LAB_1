@@ -1,0 +1,91 @@
+@startuml
+title Feature Flag & Dynamic Config Manager (Problem Statement #43)\nUML Component Diagram - Client-Server Architecture
+skinparam componentStyle uml2
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam ArrowColor #333333
+skinparam component {
+  BackgroundColor #FFF2B3
+  BorderColor #444444
+}
+skinparam package {
+  BackgroundColor #F7F7F7
+  BorderColor #888888
+}
+skinparam nodesep 40
+skinparam ranksep 55
+
+  package "CLIENT TIER" as CT {
+component "Admin Console\n(Software Engineer /\nRelease Manager)" as Console <<component>>
+  component "Client SDK\n(embedded in applications)" as SDK <<component>>
+
+  }
+package "SERVER TIER (centralized)" as ST {
+component "API Gateway &\nAccess Control" as Gateway <<component>>
+  component "SDK Sync Service\n(FR-005, NFR-001,\nNFR-002)" as Sync <<component>>
+  component "Cohort Manager\n(FR-001)" as Cohort <<component>>
+  component "Rollout Manager\n(FR-002, FR-004)" as Rollout <<component>>
+  component "Environment\nConfig Manager\n(FR-003)" as EnvCfg <<component>>
+  component "Flag Evaluation\nEngine" as Eval <<component>>
+  component "Flag & Config Store" as Store <<component>>
+
+interface "IAdminAPI\n(REST / HTTPS)" as IAdmin
+interface "ISDKStream\n(WebSocket push)" as IStream
+interface "IAccessControl\n(token check)" as IAuth
+interface "ICohortManagement" as ICohort
+interface "IRolloutControl" as IRollout
+interface "IEnvironmentConfig" as IEnv
+interface "ICohortMembership" as IMember
+interface "IFlagEvaluation" as IEval
+interface "IFlagConfigStore\n(SQL / KV queries)" as IStore
+interface "IFlagChangeFeed\n(subscribe to changes)" as IFeed
+
+}
+
+' layout hints
+Console -[hidden]right- SDK
+Gateway -[hidden]right- Sync
+Cohort -[hidden]right- Rollout
+Rollout -[hidden]right- EnvCfg
+Eval -[hidden]down- Store
+
+' Clients -> Server
+Console -down-( IAdmin
+Gateway -up- IAdmin
+SDK -down-( IStream
+Sync -up- IStream
+
+' Gateway <-> Sync (access control)
+Gateway -right- IAuth
+Sync -left-( IAuth
+
+' Gateway -> managers
+Gateway -down-( ICohort
+Cohort -up- ICohort
+Gateway -down-( IRollout
+Rollout -up- IRollout
+Gateway -down-( IEnv
+EnvCfg -up- IEnv
+
+' managers -> evaluation
+Rollout -down-( IEval
+Eval -up- IEval
+Eval -up-( IMember
+Cohort -down- IMember
+
+' persistence
+Cohort -down-( IStore
+Rollout -down-( IStore
+EnvCfg -down-( IStore
+Eval -down-( IStore
+Store -up- IStore
+Sync -down-( IFeed
+Store -up- IFeed
+
+legend bottom right
+  Notation:  ball (-O) = provided interface   |   socket (-() = required interface
+  Assembly connector = socket joined to ball  |   FR/NFR IDs refer to Lab 1 requirements
+endlegend
+@enduml
